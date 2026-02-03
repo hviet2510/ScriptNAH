@@ -1,5 +1,5 @@
--- Bee Swarm Simulator - FINAL OPTIMIZED HUB
--- Speed | VIP GUI | JSON Save | Kick Rejoin | Webhook | Performance Safe
+-- Bee Swarm Simulator - FINAL FULL FIXED VERSION
+-- Smooth Speed | Stable Slider | VIP Rejoin | JSON Save | Webhook | Optimized
 
 ---------------- SERVICES ----------------
 local Players = game:GetService("Players")
@@ -11,19 +11,17 @@ local GuiService = game:GetService("GuiService")
 local player = Players.LocalPlayer
 local pg = player:WaitForChild("PlayerGui")
 
----------------- REMOVE OLD GUI ----------------
+---------------- CLEAN OLD ----------------
 if pg:FindFirstChild("BeeSpeedGui") then
     pg.BeeSpeedGui:Destroy()
 end
 
----------------- SAVE PATH ----------------
+---------------- SAVE ----------------
 local FOLDER = "BeeSwarmConfig"
 local FILE = FOLDER .. "/config.json"
 
-if isfolder and makefolder then
-    if not isfolder(FOLDER) then
-        makefolder(FOLDER)
-    end
+if isfolder and makefolder and not isfolder(FOLDER) then
+    makefolder(FOLDER)
 end
 
 ---------------- LOAD CONFIG ----------------
@@ -38,6 +36,7 @@ if readfile and isfile and isfile(FILE) then
     local ok, data = pcall(function()
         return HttpService:JSONDecode(readfile(FILE))
     end)
+
     if ok and type(data) == "table" then
         for k,v in pairs(config) do
             if data[k] ~= nil then
@@ -55,7 +54,7 @@ local WEBHOOK_URL = config.webhook
 
 ---------------- SPEED SETTINGS ----------------
 local BASE_SPEED = 16
-local MAX_SAFE_SPEED = 42
+local MAX_SAFE_SPEED = 70
 
 ---------------- GUI ROOT ----------------
 local gui = Instance.new("ScreenGui")
@@ -63,7 +62,7 @@ gui.Name = "BeeSpeedGui"
 gui.ResetOnSpawn = false
 gui.Parent = pg
 
----------------- TOGGLE GUI BUTTON ----------------
+---------------- TOGGLE BUTTON ----------------
 local toggleGuiBtn = Instance.new("TextButton", gui)
 toggleGuiBtn.Size = UDim2.fromOffset(90,42)
 toggleGuiBtn.Position = UDim2.fromScale(0.05,0.5)
@@ -73,7 +72,7 @@ toggleGuiBtn.TextSize = 13
 toggleGuiBtn.BackgroundColor3 = Color3.fromRGB(255,200,80)
 Instance.new("UICorner", toggleGuiBtn)
 
----------------- MAIN FRAME ----------------
+---------------- FRAME ----------------
 local frame = Instance.new("Frame", gui)
 frame.AnchorPoint = Vector2.new(0.5,0.5)
 frame.Position = UDim2.fromScale(0.5,0.5)
@@ -84,7 +83,7 @@ Instance.new("UICorner", frame).CornerRadius = UDim.new(0,16)
 ---------------- TITLE ----------------
 local title = Instance.new("TextLabel", frame)
 title.Size = UDim2.new(1,0,0,44)
-title.Text = "⚡ Bee Swarm Speed Hub"
+title.Text = "⚡ Bee Speed Hub"
 title.Font = Enum.Font.GothamBold
 title.TextSize = 19
 title.TextColor3 = Color3.fromRGB(255,210,90)
@@ -118,11 +117,11 @@ local fill = Instance.new("Frame", bar)
 fill.BackgroundColor3 = Color3.fromRGB(255,200,80)
 Instance.new("UICorner", fill)
 
----------------- VIP INPUT ----------------
+---------------- VIP BOX ----------------
 local vipBox = Instance.new("TextBox", frame)
 vipBox.Size = UDim2.new(0.9,0,0,34)
 vipBox.Position = UDim2.new(0.05,0,0.74,0)
-vipBox.PlaceholderText = "Paste VIP server link here..."
+vipBox.PlaceholderText = "Paste VIP server link..."
 vipBox.Text = VIP_LINK
 vipBox.Font = Enum.Font.Gotham
 vipBox.TextSize = 14
@@ -130,7 +129,7 @@ vipBox.BackgroundColor3 = Color3.fromRGB(45,45,45)
 vipBox.TextColor3 = Color3.fromRGB(240,240,240)
 Instance.new("UICorner", vipBox)
 
----------------- WEBHOOK INPUT ----------------
+---------------- WEBHOOK BOX ----------------
 local webhookBox = Instance.new("TextBox", frame)
 webhookBox.Size = UDim2.new(0.9,0,0,34)
 webhookBox.Position = UDim2.new(0.05,0,0.84,0)
@@ -161,17 +160,19 @@ local function updateUI()
     )
 end
 
----------------- SAVE CONFIG ----------------
+---------------- SAVE ----------------
 local function saveConfig()
     if writefile then
         writefile(FILE, HttpService:JSONEncode(config))
     end
 end
 
----------------- SPEED LOOP (AUTO OPTIMIZED) ----------------
+---------------- SPEED LOOP (STABLE) ----------------
+local SPEED_EPSILON = 0.15
+
 task.spawn(function()
     while true do
-        task.wait(enabled and 0.06 or 0.25)
+        task.wait(enabled and 0.09 or 0.28)
 
         local char = player.Character
         local hum = char and char:FindFirstChildOfClass("Humanoid")
@@ -180,15 +181,17 @@ task.spawn(function()
             local target = enabled and desiredSpeed or BASE_SPEED
             target = math.clamp(target, BASE_SPEED, MAX_SAFE_SPEED)
 
-            if math.abs(hum.WalkSpeed - target) > 0.15 then
-                hum.WalkSpeed += (target - hum.WalkSpeed) * 0.16
+            local diff = target - hum.WalkSpeed
+
+            if math.abs(diff) > SPEED_EPSILON then
+                hum.WalkSpeed += diff * 0.11
             end
         end
     end
 end)
 
-local function setDesiredSpeed(val)
-    desiredSpeed = math.clamp(val, BASE_SPEED, MAX_SAFE_SPEED)
+local function setDesiredSpeed(v)
+    desiredSpeed = math.clamp(v, BASE_SPEED, MAX_SAFE_SPEED)
 end
 
 player.CharacterAdded:Connect(function()
@@ -213,10 +216,13 @@ bar.InputBegan:Connect(function(i)
     end
 end)
 
-bar.InputEnded:Connect(function() dragging = false end)
+bar.InputEnded:Connect(function()
+    dragging = false
+end)
 
 UIS.InputChanged:Connect(function(i)
     if not dragging then return end
+
     if i.UserInputType == Enum.UserInputType.MouseMovement
     or i.UserInputType == Enum.UserInputType.Touch then
 
@@ -226,15 +232,18 @@ UIS.InputChanged:Connect(function(i)
             0,1
         )
 
-        currentSpeed = math.floor(
+        local newSpeed = math.floor(
             BASE_SPEED +
             (MAX_SAFE_SPEED - BASE_SPEED) * pos
         )
 
-        config.speed = currentSpeed
-        setDesiredSpeed(currentSpeed)
-        updateUI()
-        saveConfig()
+        if newSpeed ~= currentSpeed then
+            currentSpeed = newSpeed
+            config.speed = newSpeed
+            setDesiredSpeed(newSpeed)
+            updateUI()
+            saveConfig()
+        end
     end
 end)
 
@@ -255,7 +264,6 @@ toggleGuiBtn.MouseButton1Click:Connect(function()
 end)
 
 ---------------- VIP AUTO REJOIN ----------------
-
 local teleporting = false
 local LAST_REJOIN = 0
 local REJOIN_DELAY = 6
@@ -334,4 +342,4 @@ end)
 setDesiredSpeed(currentSpeed)
 updateUI()
 
-print("⚡ Bee Swarm FINAL OPTIMIZED loaded!")
+print("⚡ Bee Swarm FINAL FULL FIX loaded!")
