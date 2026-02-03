@@ -1,5 +1,5 @@
--- Bee Swarm Simulator - FULL Speed + VIP GUI + JSON Save + Webhook
--- Smooth | Toggle GUI | VIP Input | Kick Rejoin | Discord Ping
+-- Bee Swarm Simulator - FULL FIXED Speed + VIP GUI + JSON Save + Webhook
+-- Smooth | VIP Input | Kick Rejoin | Discord Notify | Safe Version
 
 ---------------- SERVICES ----------------
 local Players = game:GetService("Players")
@@ -53,6 +53,7 @@ local BASE_SPEED = 16
 local MAX_SAFE_SPEED = 42
 local SMOOTH_RATE = 0.18
 local LOOP_DELAY = 0.05
+
 local desiredSpeed = currentSpeed
 
 ---------------- GUI ROOT ----------------
@@ -131,13 +132,15 @@ Instance.new("UICorner", vipBox)
 ---------------- UI UPDATE ----------------
 local function updateUI()
     toggle.Text = enabled and "ON" or "OFF"
-    toggle.BackgroundColor3 = enabled and Color3.fromRGB(90,200,90)
+    toggle.BackgroundColor3 =
+        enabled and Color3.fromRGB(90,200,90)
         or Color3.fromRGB(200,90,90)
 
     speedLabel.Text = "Speed: "..currentSpeed
 
     local percent = math.clamp(
-        (currentSpeed - BASE_SPEED)/(MAX_SAFE_SPEED - BASE_SPEED),
+        (currentSpeed - BASE_SPEED) /
+        (MAX_SAFE_SPEED - BASE_SPEED),
         0,1
     )
 
@@ -159,11 +162,16 @@ end
 task.spawn(function()
     while true do
         task.wait(LOOP_DELAY)
+
         local char = player.Character
         local hum = char and char:FindFirstChildOfClass("Humanoid")
-        if hum then
+
+        if hum and hum.Health > 0 then
             local target = enabled and desiredSpeed or BASE_SPEED
-            hum.WalkSpeed += (target - hum.WalkSpeed) * SMOOTH_RATE
+            target = math.clamp(target, BASE_SPEED, MAX_SAFE_SPEED)
+
+            hum.WalkSpeed = hum.WalkSpeed +
+                (target - hum.WalkSpeed) * SMOOTH_RATE
         end
     end
 end)
@@ -185,6 +193,7 @@ toggle.MouseButton1Click:Connect(function()
 end)
 
 local dragging = false
+
 bar.InputBegan:Connect(function(i)
     if i.UserInputType == Enum.UserInputType.MouseButton1
     or i.UserInputType == Enum.UserInputType.Touch then
@@ -192,19 +201,24 @@ bar.InputBegan:Connect(function(i)
     end
 end)
 
-bar.InputEnded:Connect(function() dragging = false end)
+bar.InputEnded:Connect(function()
+    dragging = false
+end)
 
 UIS.InputChanged:Connect(function(i)
     if not dragging then return end
     if i.UserInputType == Enum.UserInputType.MouseMovement
     or i.UserInputType == Enum.UserInputType.Touch then
+
         local pos = math.clamp(
-            (i.Position.X - bar.AbsolutePosition.X)/bar.AbsoluteSize.X,
+            (i.Position.X - bar.AbsolutePosition.X)
+            / bar.AbsoluteSize.X,
             0,1
         )
 
         currentSpeed = math.floor(
-            BASE_SPEED + (MAX_SAFE_SPEED - BASE_SPEED)*pos
+            BASE_SPEED +
+            (MAX_SAFE_SPEED - BASE_SPEED) * pos
         )
 
         setDesiredSpeed(currentSpeed)
@@ -224,35 +238,49 @@ end)
 
 ---------------- VIP REJOIN + WEBHOOK ----------------
 
--- 👉 DISCORD WEBHOOK
+-- 👉 PUT YOUR WEBHOOK
 local WEBHOOK_URL = "https://discord.com/api/webhooks/1221364248785981571/ZNqaNh7eMz-OKalevl5kU5rki1p4qQbWYlGWbV77LM5SFJkMPi7N1CeWJAQpfyPCNPc1"
 
-local REJOIN_DELAY = 6
 local teleporting = false
+local REJOIN_DELAY = 6
 
 local function extractPrivateId(link)
-    return link:match("privateServerLinkCode=([%w%-_]+)")
+    if not link or link == "" then return nil end
+
+    return
+        link:match("privateServerLinkCode=([%w%-_]+)") or
+        link:match("code=([%w%-_]+)")
 end
 
 local function sendWebhook(msg)
-    if not (syn or request or http_request) then return end
-    local req = syn and syn.request or request or http_request
+    local req =
+        (syn and syn.request)
+        or request
+        or http_request
 
-    req({
-        Url = WEBHOOK_URL,
-        Method = "POST",
-        Headers = {["Content-Type"] = "application/json"},
-        Body = HttpService:JSONEncode({
-            content = "🐝 **Bee Swarm Auto Rejoin**\n"..msg
+    if not req or WEBHOOK_URL == "" then return end
+
+    pcall(function()
+        req({
+            Url = WEBHOOK_URL,
+            Method = "POST",
+            Headers = {["Content-Type"] = "application/json"},
+            Body = HttpService:JSONEncode({
+                content = "🐝 **Bee Swarm Auto Rejoin**\n"..msg
+            })
         })
-    })
+    end)
 end
 
 local function rejoinVIP(reason)
-    if teleporting or VIP_LINK == "https://www.roblox.com/share?code=20126a0e28925e4393f7a7b9e69e4f4f&type=Server" then return end
+    if teleporting then return end
+    if not VIP_LINK or VIP_LINK == "" then return end
 
     local privateId = extractPrivateId(VIP_LINK)
-    if not privateId then return end
+    if not privateId then
+        warn("Invalid VIP link")
+        return
+    end
 
     teleporting = true
 
@@ -266,11 +294,17 @@ local function rejoinVIP(reason)
 
     task.wait(REJOIN_DELAY)
 
-    TeleportService:TeleportToPrivateServer(
-        game.PlaceId,
-        privateId,
-        {player}
-    )
+    local ok = pcall(function()
+        TeleportService:TeleportToPrivateServer(
+            game.PlaceId,
+            privateId,
+            {player}
+        )
+    end)
+
+    if not ok then
+        teleporting = false
+    end
 end
 
 GuiService.ErrorMessageChanged:Connect(function(msg)
@@ -283,4 +317,4 @@ end)
 setDesiredSpeed(currentSpeed)
 updateUI()
 
-print("⚡ FULL Speed + VIP GUI + JSON Save loaded!")
+print("⚡ FULL FIXED Speed + VIP GUI + JSON + Webhook loaded!")
