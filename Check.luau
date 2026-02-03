@@ -1,5 +1,5 @@
--- Bee Swarm Simulator - Speed GUI + JSON Save Config
--- Folder + File Save | Toggle | Slider | PC + Mobile
+-- Bee Swarm Simulator - Speed GUI (Simple)
+-- JSON Save | Drag | Toggle GUI | PC + Mobile
 
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
@@ -21,7 +21,6 @@ end
 local FOLDER = "BeeSwarmConfig"
 local FILE = FOLDER .. "/speed.json"
 
--- create folder if not exist
 if isfolder and makefolder then
     if not isfolder(FOLDER) then
         makefolder(FOLDER)
@@ -31,16 +30,12 @@ end
 --------------------------------------------------
 -- LOAD CONFIG
 --------------------------------------------------
-local config = {
-    speed = 40,
-    enabled = true
-}
+local config = { speed = 40, enabled = true }
 
 if readfile and isfile and isfile(FILE) then
     local ok, data = pcall(function()
         return HttpService:JSONDecode(readfile(FILE))
     end)
-
     if ok and type(data) == "table" then
         config.speed = data.speed or config.speed
         config.enabled = data.enabled ~= false
@@ -58,33 +53,84 @@ gui.Name = "BeeSpeedGui"
 gui.ResetOnSpawn = false
 gui.Parent = pg
 
-local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.fromScale(0.45, 0.28)
-frame.Position = UDim2.fromScale(0.5, 0.75)
-frame.AnchorPoint = Vector2.new(0.5, 0.5)
-frame.BackgroundColor3 = Color3.fromRGB(30,30,30)
+--------------------------------------------------
+-- TOGGLE GUI BUTTON
+--------------------------------------------------
+local toggleGuiBtn = Instance.new("TextButton", gui)
+toggleGuiBtn.Size = UDim2.fromOffset(70,40)
+toggleGuiBtn.Position = UDim2.fromScale(0.05,0.5)
+toggleGuiBtn.Text = "⚡ SPEED"
+toggleGuiBtn.Font = Enum.Font.GothamBold
+toggleGuiBtn.TextSize = 13
+toggleGuiBtn.BackgroundColor3 = Color3.fromRGB(255,200,80)
 
-Instance.new("UICorner", frame).CornerRadius = UDim.new(0,14)
+Instance.new("UICorner", toggleGuiBtn)
+
+--------------------------------------------------
+-- MAIN FRAME
+--------------------------------------------------
+local frame = Instance.new("Frame", gui)
+frame.AnchorPoint = Vector2.new(0.5,0.5)
+frame.Position = UDim2.fromScale(0.5,0.5)
+frame.Size = UDim2.fromScale(0.5,0.4)
+frame.BackgroundColor3 = Color3.fromRGB(30,30,30)
+frame.Active = true
+
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0,16)
+
+--------------------------------------------------
+-- DRAG GUI
+--------------------------------------------------
+do
+    local dragging = false
+    local dragStart, startPos
+
+    frame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = frame.Position
+        end
+    end)
+
+    UIS.InputChanged:Connect(function(input)
+        if dragging and
+        (input.UserInputType == Enum.UserInputType.MouseMovement
+        or input.UserInputType == Enum.UserInputType.Touch) then
+
+            local delta = input.Position - dragStart
+            frame.Position = startPos + UDim2.fromOffset(delta.X, delta.Y)
+        end
+    end)
+
+    UIS.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+end
 
 --------------------------------------------------
 -- TITLE
 --------------------------------------------------
 local title = Instance.new("TextLabel", frame)
-title.Size = UDim2.new(1,0,0,36)
-title.Text = "⚡ Speed Control"
+title.Size = UDim2.new(1,0,0,42)
+title.Text = "⚡ Speed Controller"
 title.Font = Enum.Font.GothamBold
-title.TextSize = 18
+title.TextSize = 19
 title.TextColor3 = Color3.fromRGB(255,210,90)
 title.BackgroundTransparency = 1
 
 --------------------------------------------------
--- TOGGLE
+-- TOGGLE SPEED
 --------------------------------------------------
 local toggle = Instance.new("TextButton", frame)
-toggle.Size = UDim2.new(0.45,0,0,36)
-toggle.Position = UDim2.new(0.05,0,0.45,0)
+toggle.Size = UDim2.new(0.5,0,0,38)
+toggle.Position = UDim2.new(0.25,0,0.32,0)
 toggle.Font = Enum.Font.GothamBold
-toggle.TextSize = 15
+toggle.TextSize = 16
 
 Instance.new("UICorner", toggle)
 
@@ -92,10 +138,10 @@ Instance.new("UICorner", toggle)
 -- SPEED LABEL
 --------------------------------------------------
 local speedLabel = Instance.new("TextLabel", frame)
-speedLabel.Size = UDim2.new(0.45,0,0,36)
-speedLabel.Position = UDim2.new(0.5,0,0.45,0)
+speedLabel.Size = UDim2.new(1,0,0,30)
+speedLabel.Position = UDim2.new(0,0,0.5,0)
 speedLabel.Font = Enum.Font.Gotham
-speedLabel.TextSize = 14
+speedLabel.TextSize = 15
 speedLabel.TextColor3 = Color3.fromRGB(230,230,230)
 speedLabel.BackgroundTransparency = 1
 
@@ -103,15 +149,14 @@ speedLabel.BackgroundTransparency = 1
 -- SLIDER BAR
 --------------------------------------------------
 local bar = Instance.new("Frame", frame)
-bar.Size = UDim2.new(0.9,0,0,10)
-bar.Position = UDim2.new(0.05,0,0.8,0)
+bar.Size = UDim2.new(0.85,0,0,12)
+bar.Position = UDim2.new(0.075,0,0.7,0)
 bar.BackgroundColor3 = Color3.fromRGB(70,70,70)
 
 Instance.new("UICorner", bar)
 
 local fill = Instance.new("Frame", bar)
 fill.BackgroundColor3 = Color3.fromRGB(255,200,80)
-
 Instance.new("UICorner", fill)
 
 --------------------------------------------------
@@ -125,11 +170,7 @@ local function updateUI()
 
     speedLabel.Text = "Speed: " .. currentSpeed
 
-    local percent = math.clamp(
-        (currentSpeed - 16) / (120 - 16),
-        0, 1
-    )
-
+    local percent = math.clamp((currentSpeed - 16) / (120 - 16), 0, 1)
     fill.Size = UDim2.new(percent,0,1,0)
 end
 
@@ -138,17 +179,15 @@ end
 --------------------------------------------------
 local function saveConfig()
     if writefile then
-        local data = {
+        writefile(FILE, HttpService:JSONEncode({
             speed = currentSpeed,
             enabled = enabled
-        }
-
-        writefile(FILE, HttpService:JSONEncode(data))
+        }))
     end
 end
 
 --------------------------------------------------
--- SPEED APPLY
+-- APPLY SPEED
 --------------------------------------------------
 local function applySpeed()
     local char = player.Character
@@ -166,7 +205,7 @@ player.CharacterAdded:Connect(function()
 end)
 
 --------------------------------------------------
--- TOGGLE LOGIC
+-- TOGGLE SPEED
 --------------------------------------------------
 toggle.MouseButton1Click:Connect(function()
     enabled = not enabled
@@ -176,7 +215,7 @@ toggle.MouseButton1Click:Connect(function()
 end)
 
 --------------------------------------------------
--- SLIDER CONTROL (PC + MOBILE)
+-- SLIDER CONTROL
 --------------------------------------------------
 local dragging = false
 
@@ -203,7 +242,6 @@ UIS.InputChanged:Connect(function(input)
         )
 
         currentSpeed = math.floor(16 + (120 - 16) * pos)
-
         updateUI()
         applySpeed()
         saveConfig()
@@ -211,7 +249,14 @@ UIS.InputChanged:Connect(function(input)
 end)
 
 --------------------------------------------------
+-- TOGGLE GUI VISIBILITY
+--------------------------------------------------
+toggleGuiBtn.MouseButton1Click:Connect(function()
+    frame.Visible = not frame.Visible
+end)
+
+--------------------------------------------------
 updateUI()
 applySpeed()
 
-print("⚡ Bee Speed GUI loaded + JSON save config!")
+print("⚡ Bee Speed GUI loaded (simple version)")
